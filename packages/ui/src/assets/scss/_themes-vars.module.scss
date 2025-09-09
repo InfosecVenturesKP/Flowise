@@ -10,10 +10,10 @@ $primary800: #333333;
 
 // secondary - Red theme
 $secondaryLight: #ffebee;
-$secondaryMain: #cc0000;
+$secondaryMain: #d50000;
 $secondaryDark: #b71c1c;
 $secondary200: #ef5350;
-$secondary800: #8b0000;
+$secondary800: #cc0000;
 
 // success Colors
 $successLight: #cdf5d8;
@@ -31,10 +31,10 @@ $orangeLight: #fbe9e7;
 $orangeMain: #ffab91;
 $orangeDark: #d84315;
 
-// accent - Red variants  
+// accent - Red variants (stronger for dark theme visibility)
 $tealLight: #ffcdd2;
-$tealMain: #cc0000;
-$tealDark: #8b0000;
+$tealMain: #ff1744;
+$tealDark: #d50000;
 
 // warning
 $warningLight: #fff8e1;
@@ -72,12 +72,12 @@ $darkPrimaryDark: #191b1f;
 $darkPrimary200: #666666;
 $darkPrimary800: #1a1a1a;
 
-// secondary dark - Red theme
-$darkSecondaryLight: #ffcdd2;
-$darkSecondaryMain: #cc0000;
+// secondary dark - Red theme (stronger for dark backgrounds)
+$darkSecondaryLight: #4d0000;
+$darkSecondaryMain: #ff1744;
 $darkSecondaryDark: #ffffff;
-$darkSecondary200: #ef5350;
-$darkSecondary800: #8b0000;
+$darkSecondary200: #ff5722;
+$darkSecondary800: #d50000;
 
 // text variants
 $darkTextTitle: #d7dcec;
