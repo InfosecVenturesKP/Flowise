@@ -39,12 +39,12 @@ import PerfectScrollbar from 'react-perfect-scrollbar'
 // project imports
 import { PermissionListItemButton } from '@/ui-component/button/RBACButtons'
 import MainCard from '@/ui-component/cards/MainCard'
-import AboutDialog from '@/ui-component/dialog/AboutDialog'
+// import AboutDialog from '@/ui-component/dialog/AboutDialog'
 import Transitions from '@/ui-component/extended/Transitions'
 
 // assets
 import ExportingGIF from '@/assets/images/Exporting.gif'
-import { IconFileExport, IconFileUpload, IconInfoCircle, IconLogout, IconSettings, IconUserEdit, IconX } from '@tabler/icons-react'
+import { IconFileExport, IconFileUpload, IconLogout, IconSettings, IconUserEdit, IconX } from '@tabler/icons-react'
 import './index.css'
 
 // API
@@ -218,7 +218,7 @@ const ProfileSection = ({ handleLogout }) => {
     const { isCloud } = useConfig()
 
     const [open, setOpen] = useState(false)
-    const [aboutDialogOpen, setAboutDialogOpen] = useState(false)
+    // const [aboutDialogOpen, setAboutDialogOpen] = useState(false)
 
     const [exportDialogOpen, setExportDialogOpen] = useState(false)
     const [importDialogOpen, setImportDialogOpen] = useState(false)
@@ -488,7 +488,7 @@ const ProfileSection = ({ handleLogout }) => {
                                                     <ListItemText primary={<Typography variant='body2'>Import</Typography>} />
                                                 </PermissionListItemButton>
                                                 <input ref={inputRef} type='file' hidden onChange={fileChange} accept='.json' />
-                                                <ListItemButton
+                                                {/* <ListItemButton
                                                     sx={{ borderRadius: `${customization.borderRadius}px` }}
                                                     onClick={() => {
                                                         setOpen(false)
@@ -499,7 +499,7 @@ const ProfileSection = ({ handleLogout }) => {
                                                         <IconInfoCircle stroke={1.5} size='1.3rem' />
                                                     </ListItemIcon>
                                                     <ListItemText primary={<Typography variant='body2'>Version</Typography>} />
-                                                </ListItemButton>
+                                                </ListItemButton> */}
                                                 {isAuthenticated && !currentUser.isSSO && !isCloud && (
                                                     <ListItemButton
                                                         sx={{ borderRadius: `${customization.borderRadius}px` }}
@@ -532,7 +532,7 @@ const ProfileSection = ({ handleLogout }) => {
                     </Transitions>
                 )}
             </Popper>
-            <AboutDialog show={aboutDialogOpen} onCancel={() => setAboutDialogOpen(false)} />
+            {/* <AboutDialog show={aboutDialogOpen} onCancel={() => setAboutDialogOpen(false)} /> */}
             <ExportDialog show={exportDialogOpen} onCancel={() => setExportDialogOpen(false)} onExport={(data) => onExport(data)} />
             <ImportDialog show={importDialogOpen} />
         </>

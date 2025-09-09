@@ -1,29 +1,29 @@
 // assets
 import {
-    IconList,
-    IconUsersGroup,
-    IconHierarchy,
     IconBuildingStore,
+    IconChartHistogram,
+    IconClipboardList,
+    IconDatabase,
+    IconFileDatabase,
+    IconFileUpload,
+    IconFiles,
+    IconHierarchy,
     IconKey,
-    IconTool,
+    IconList,
+    IconListCheck,
     IconLock,
+    IconLockCheck,
+    IconMicroscope,
     IconRobot,
     IconSettings,
-    IconVariable,
-    IconFiles,
-    IconTestPipe,
-    IconMicroscope,
-    IconDatabase,
-    IconChartHistogram,
-    IconUserEdit,
-    IconFileUpload,
-    IconClipboardList,
-    IconStack2,
-    IconUsers,
-    IconLockCheck,
-    IconFileDatabase,
     IconShieldLock,
-    IconListCheck
+    IconStack2,
+    IconTestPipe,
+    IconTool,
+    IconUserEdit,
+    IconUsers,
+    IconUsersGroup,
+    IconVariable
 } from '@tabler/icons-react'
 
 // constant
@@ -102,15 +102,15 @@ const dashboard = {
                     breadcrumbs: true,
                     permission: 'assistants:view'
                 },
-                {
-                    id: 'marketplaces',
-                    title: 'Marketplaces',
-                    type: 'item',
-                    url: '/marketplaces',
-                    icon: icons.IconBuildingStore,
-                    breadcrumbs: true,
-                    permission: 'templates:marketplace,templates:custom'
-                },
+                // {
+                //     id: 'marketplaces',
+                //     title: 'Marketplaces',
+                //     type: 'item',
+                //     url: '/marketplaces',
+                //     icon: icons.IconBuildingStore,
+                //     breadcrumbs: true,
+                //     permission: 'templates:marketplace,templates:custom'
+                // },
                 {
                     id: 'tools',
                     title: 'Tools',
