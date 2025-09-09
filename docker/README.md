@@ -4,10 +4,41 @@ Starts Flowise from [DockerHub Image](https://hub.docker.com/r/flowiseai/flowise
 
 ## Usage
 
+### Using Remote Image (Default)
+
 1. Create `.env` file and specify the `PORT` (refer to `.env.example`)
 2. `docker compose up -d`
 3. Open [http://localhost:3000](http://localhost:3000)
 4. You can bring the containers down by `docker compose stop`
+
+### Using Local Development Image
+
+If you've made changes to the codebase and want to test them, follow these steps:
+
+1. **Build the local image** from the root directory:
+   ```bash
+   cd .. # Go back to project root
+   docker build --no-cache -t flowise-local .
+   ```
+
+2. **Update docker-compose.yml** to use the local image:
+   ```yaml
+   services:
+       flowise:
+           image: flowise-local:latest  # Changed from flowiseai/flowise:latest
+   ```
+
+3. **Run with local image**:
+   ```bash
+   docker compose up -d
+   ```
+
+4. **To switch back to remote image**:
+   ```yaml
+   services:
+       flowise:
+           image: flowiseai/flowise:latest  # Back to remote image
+   ```
 
 ## 🌱 Env Variables
 
