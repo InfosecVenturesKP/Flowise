@@ -40,6 +40,28 @@ If you've made changes to the codebase and want to test them, follow these steps
            image: flowiseai/flowise:latest  # Back to remote image
    ```
 
+### Using PostgreSQL Database
+
+For production or development with PostgreSQL, update your `.env` file:
+
+```bash
+PORT=3000
+DATABASE_TYPE=postgres
+DATABASE_PORT=5432
+DATABASE_HOST=host.docker.internal
+DATABASE_NAME=flowise_new
+DATABASE_USER=boparaiamrit
+DATABASE_PASSWORD=
+DATABASE_PATH=/root/.flowise
+LOG_PATH=/root/.flowise/logs
+SECRETKEY_PATH=/root/.flowise
+BLOB_STORAGE_PATH=/root/.flowise/storage
+LOG_LEVEL=info
+DISABLE_FLOWISE_TELEMETRY=true
+```
+
+**Note**: `host.docker.internal` is used to connect from Docker container to PostgreSQL running on the host machine.
+
 ## 🌱 Env Variables
 
 If you like to persist your data (flows, logs, credentials, storage), set these variables in the `.env` file inside `docker` folder:
