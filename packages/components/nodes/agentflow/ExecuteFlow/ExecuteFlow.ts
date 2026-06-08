@@ -7,11 +7,13 @@ import {
     INodeParams,
     IServerSideEventStreamer
 } from '../../../src/Interface'
-import axios, { AxiosRequestConfig } from 'axios'
-import { getCredentialData, getCredentialParam } from '../../../src/utils'
+import { AxiosRequestConfig } from 'axios'
+import { secureAxiosRequest } from '../../../src/httpSecurity'
+import { getCredentialData, getCredentialParam, processTemplateVariables, parseJsonBody } from '../../../src/utils'
 import { DataSource } from 'typeorm'
 import { BaseMessageLike } from '@langchain/core/messages'
 import { updateFlowState } from '../utils'
+import { flatten } from 'lodash'
 
 class ExecuteFlow_Agentflow implements INode {
     label: string
@@ -30,7 +32,7 @@ class ExecuteFlow_Agentflow implements INode {
     constructor() {
         this.label = 'Execute Flow'
         this.name = 'executeFlowAgentflow'
-        this.version = 1.1
+        this.version = 1.2
         this.type = 'ExecuteFlow'
         this.category = 'Agent Flows'
         this.description = 'Execute another flow'
@@ -102,8 +104,7 @@ class ExecuteFlow_Agentflow implements INode {
                         label: 'Key',
                         name: 'key',
                         type: 'asyncOptions',
-                        loadMethod: 'listRuntimeStateKeys',
-                        freeSolo: true
+                        loadMethod: 'listRuntimeStateKeys'
                     },
                     {
                         label: 'Value',
@@ -167,9 +168,7 @@ class ExecuteFlow_Agentflow implements INode {
         let overrideConfig = nodeData.inputs?.executeFlowOverrideConfig
         if (typeof overrideConfig === 'string' && overrideConfig.startsWith('{') && overrideConfig.endsWith('}')) {
             try {
-                // Handle escaped square brackets and other common escape sequences
-                const unescapedConfig = overrideConfig.replace(/\\(\[|\])/g, '$1')
-                overrideConfig = JSON.parse(unescapedConfig)
+                overrideConfig = parseJsonBody(overrideConfig)
             } catch (parseError) {
                 throw new Error(`Invalid JSON in executeFlowOverrideConfig: ${parseError.message}`)
             }
@@ -204,15 +203,31 @@ class ExecuteFlow_Agentflow implements INode {
                 }
             }
 
-            const response = await axios(requestConfig)
+            const response = await secureAxiosRequest(requestConfig)
 
             let resultText = ''
+            const { sourceDocuments, usedTools, artifacts, fileAnnotations } = response.data
+            const flattenedSourceDocuments = Array.isArray(sourceDocuments) ? flatten(sourceDocuments) : []
+            const flattenedUsedTools = Array.isArray(usedTools) ? flatten(usedTools) : []
+            const flattenedArtifacts = Array.isArray(artifacts) ? flatten(artifacts) : []
             if (response.data.text) resultText = response.data.text
             else if (response.data.json) resultText = '```json\n' + JSON.stringify(response.data.json, null, 2)
             else resultText = JSON.stringify(response.data, null, 2)
 
             if (isLastNode && sseStreamer) {
                 sseStreamer.streamTokenEvent(options.chatId, resultText)
+                if (flattenedSourceDocuments.length > 0) {
+                    sseStreamer.streamSourceDocumentsEvent(options.chatId, flattenedSourceDocuments)
+                }
+                if (flattenedUsedTools.length > 0) {
+                    sseStreamer.streamUsedToolsEvent(options.chatId, flattenedUsedTools)
+                }
+                if (flattenedArtifacts.length > 0) {
+                    sseStreamer.streamArtifactsEvent(options.chatId, flattenedArtifacts)
+                }
+                if (fileAnnotations) {
+                    sseStreamer.streamFileAnnotationsEvent(options.chatId, fileAnnotations)
+                }
             }
 
             // Update flow state if needed
@@ -222,13 +237,7 @@ class ExecuteFlow_Agentflow implements INode {
             }
 
             // Process template variables in state
-            if (newState && Object.keys(newState).length > 0) {
-                for (const key in newState) {
-                    if (newState[key].toString().includes('{{ output }}')) {
-                        newState[key] = newState[key].replaceAll('{{ output }}', resultText)
-                    }
-                }
-            }
+            newState = processTemplateVariables(newState, resultText)
 
             // Only add to runtime chat history if this is the first node
             const inputMessages = []
@@ -253,7 +262,11 @@ class ExecuteFlow_Agentflow implements INode {
                     ]
                 },
                 output: {
-                    content: resultText
+                    content: resultText,
+                    ...(flattenedSourceDocuments.length > 0 && { sourceDocuments: flattenedSourceDocuments }),
+                    ...(flattenedUsedTools.length > 0 && { usedTools: flattenedUsedTools }),
+                    ...(flattenedArtifacts.length > 0 && { artifacts: flattenedArtifacts }),
+                    ...(fileAnnotations && fileAnnotations.length > 0 && { fileAnnotations })
                 },
                 state: newState,
                 chatHistory: [
@@ -261,7 +274,16 @@ class ExecuteFlow_Agentflow implements INode {
                     {
                         role: returnRole,
                         content: resultText,
-                        name: nodeData?.label ? nodeData?.label.toLowerCase().replace(/\s/g, '_').trim() : nodeData?.id
+                        name: nodeData?.label ? nodeData?.label.toLowerCase().replace(/\s/g, '_').trim() : nodeData?.id,
+                        ...((flattenedArtifacts.length > 0 ||
+                            (fileAnnotations && fileAnnotations.length > 0) ||
+                            flattenedUsedTools.length > 0) && {
+                            additional_kwargs: {
+                                ...(flattenedArtifacts.length > 0 && { artifacts: flattenedArtifacts }),
+                                ...(fileAnnotations && fileAnnotations.length > 0 && { fileAnnotations }),
+                                ...(flattenedUsedTools.length > 0 && { usedTools: flattenedUsedTools })
+                            }
+                        })
                     }
                 ]
             }

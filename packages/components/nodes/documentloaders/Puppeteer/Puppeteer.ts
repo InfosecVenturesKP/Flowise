@@ -1,6 +1,6 @@
 import { Browser, Page, PuppeteerWebBaseLoader, PuppeteerWebBaseLoaderOptions } from '@langchain/community/document_loaders/web/puppeteer'
 import { Document } from '@langchain/core/documents'
-import { TextSplitter } from 'langchain/text_splitter'
+import { TextSplitter } from '@langchain/textsplitters'
 import { test } from 'linkifyjs'
 import { omit } from 'lodash'
 import { PuppeteerLifeCycleEvent } from 'puppeteer'
@@ -181,11 +181,14 @@ class Puppeteer_DocumentLoaders implements INode {
         async function puppeteerLoader(url: string): Promise<Document[] | undefined> {
             try {
                 let docs: Document[] = []
+
+                const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH
+
                 const config: PuppeteerWebBaseLoaderOptions = {
                     launchOptions: {
                         args: ['--no-sandbox'],
                         headless: 'new',
-                        executablePath: process.env.PUPPETEER_EXECUTABLE_FILE_PATH
+                        executablePath: executablePath
                     }
                 }
                 if (waitUntilGoToOption) {

@@ -1,17 +1,19 @@
 import { NextFunction, Request, Response } from 'express'
 import { StatusCodes } from 'http-status-codes'
+import { QueryRunner } from 'typeorm'
 import { ChatFlow } from '../../database/entities/ChatFlow'
+import { WorkspaceUserErrorMessage, WorkspaceUserService } from '../../enterprise/services/workspace-user.service'
 import { InternalFlowiseError } from '../../errors/internalFlowiseError'
 import { ChatflowType } from '../../Interface'
 import apiKeyService from '../../services/apikey'
 import chatflowsService from '../../services/chatflows'
+import { GeneralErrorMessage } from '../../utils/constants'
 import { getRunningExpressApp } from '../../utils/getRunningExpressApp'
+import { getPageAndLimitParams } from '../../utils/pagination'
 import { checkUsageLimit } from '../../utils/quotaUsage'
 import { RateLimiterManager } from '../../utils/rateLimit'
-import { getPageAndLimitParams } from '../../utils/pagination'
-import { WorkspaceUserErrorMessage, WorkspaceUserService } from '../../enterprise/services/workspace-user.service'
-import { QueryRunner } from 'typeorm'
-import { GeneralErrorMessage } from '../../utils/constants'
+import { sanitizeFlowDataForPublicEndpoint } from '../../utils/sanitizeFlowData'
+import { stripProtectedFields } from '../../utils/stripProtectedFields'
 
 const checkIfChatflowIsValidForStreaming = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -98,7 +100,7 @@ const getChatflowByApiKey = async (req: Request, res: Response, next: NextFuncti
         if (!apikey) {
             return res.status(401).send('Unauthorized')
         }
-        const apiResponse = await chatflowsService.getChatflowByApiKey(apikey.id, req.query.keyonly)
+        const apiResponse = await chatflowsService.getChatflowByApiKey(apikey.id, apikey.workspaceId, req.query.keyonly)
         return res.json(apiResponse)
     } catch (error) {
         next(error)
@@ -110,7 +112,14 @@ const getChatflowById = async (req: Request, res: Response, next: NextFunction) 
         if (typeof req.params === 'undefined' || !req.params.id) {
             throw new InternalFlowiseError(StatusCodes.PRECONDITION_FAILED, `Error: chatflowsController.getChatflowById - id not provided!`)
         }
-        const apiResponse = await chatflowsService.getChatflowById(req.params.id)
+        const workspaceId = req.user?.activeWorkspaceId
+        if (!workspaceId) {
+            throw new InternalFlowiseError(
+                StatusCodes.NOT_FOUND,
+                `Error: chatflowsController.getChatflowById - workspace ${workspaceId} not found!`
+            )
+        }
+        const apiResponse = await chatflowsService.getChatflowById(req.params.id, workspaceId)
         return res.json(apiResponse)
     } catch (error) {
         next(error)
@@ -144,7 +153,8 @@ const saveChatflow = async (req: Request, res: Response, next: NextFunction) => 
         await checkUsageLimit('flows', subscriptionId, getRunningExpressApp().usageCacheManager, existingChatflowCount + newChatflowCount)
 
         const newChatFlow = new ChatFlow()
-        Object.assign(newChatFlow, body)
+        Object.assign(newChatFlow, stripProtectedFields(body))
+
         newChatFlow.workspaceId = workspaceId
         const apiResponse = await chatflowsService.saveChatflow(
             newChatFlow,
@@ -165,9 +175,16 @@ const updateChatflow = async (req: Request, res: Response, next: NextFunction) =
         if (typeof req.params === 'undefined' || !req.params.id) {
             throw new InternalFlowiseError(StatusCodes.PRECONDITION_FAILED, `Error: chatflowsController.updateChatflow - id not provided!`)
         }
-        const chatflow = await chatflowsService.getChatflowById(req.params.id)
+        const workspaceId = req.user?.activeWorkspaceId
+        if (!workspaceId) {
+            throw new InternalFlowiseError(
+                StatusCodes.NOT_FOUND,
+                `Error: chatflowsController.saveChatflow - workspace ${workspaceId} not found!`
+            )
+        }
+        const chatflow = await chatflowsService.getChatflowById(req.params.id, workspaceId)
         if (!chatflow) {
-            return res.status(404).send(`Chatflow ${req.params.id} not found`)
+            return res.status(404).send('Chatflow not found')
         }
         const orgId = req.user?.activeOrganizationId
         if (!orgId) {
@@ -176,17 +193,10 @@ const updateChatflow = async (req: Request, res: Response, next: NextFunction) =
                 `Error: chatflowsController.saveChatflow - organization ${orgId} not found!`
             )
         }
-        const workspaceId = req.user?.activeWorkspaceId
-        if (!workspaceId) {
-            throw new InternalFlowiseError(
-                StatusCodes.NOT_FOUND,
-                `Error: chatflowsController.saveChatflow - workspace ${workspaceId} not found!`
-            )
-        }
         const subscriptionId = req.user?.activeOrganizationSubscriptionId || ''
         const body = req.body
         const updateChatFlow = new ChatFlow()
-        Object.assign(updateChatFlow, body)
+        Object.assign(updateChatFlow, stripProtectedFields(body))
 
         updateChatFlow.id = chatflow.id
         const rateLimiterManager = RateLimiterManager.getInstance()
@@ -210,7 +220,8 @@ const getSinglePublicChatflow = async (req: Request, res: Response, next: NextFu
         }
         const chatflow = await chatflowsService.getChatflowById(req.params.id)
         if (!chatflow) return res.status(StatusCodes.NOT_FOUND).json({ message: 'Chatflow not found' })
-        if (chatflow.isPublic) return res.status(StatusCodes.OK).json(chatflow)
+        if (chatflow.isPublic)
+            return res.status(StatusCodes.OK).json({ ...chatflow, flowData: sanitizeFlowDataForPublicEndpoint(chatflow.flowData) })
         if (!req.user) return res.status(StatusCodes.UNAUTHORIZED).json({ message: GeneralErrorMessage.UNAUTHORIZED })
         queryRunner = getRunningExpressApp().AppDataSource.createQueryRunner()
         const workspaceUserService = new WorkspaceUserService()

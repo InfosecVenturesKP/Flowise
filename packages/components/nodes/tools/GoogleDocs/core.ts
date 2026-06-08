@@ -1,7 +1,7 @@
-import { z } from 'zod'
+import { z } from 'zod/v3'
 import fetch from 'node-fetch'
 import { DynamicStructuredTool } from '../OpenAPIToolkit/core'
-import { TOOL_ARGS_PREFIX } from '../../../src/agents'
+import { TOOL_ARGS_PREFIX, formatToolError } from '../../../src/agents'
 
 export const desc = `Use this when you want to access Google Docs API for managing documents`
 
@@ -256,7 +256,7 @@ class CreateDocumentTool extends BaseGoogleDocsTool {
 
             return createResponse
         } catch (error) {
-            return `Error creating document: ${error}`
+            return formatToolError(`Error creating document: ${error}`, params)
         }
     }
 }
@@ -284,11 +284,16 @@ class GetDocumentTool extends BaseGoogleDocsTool {
         const params = { ...arg, ...this.defaultParams }
 
         try {
-            const endpoint = `documents/${encodeURIComponent(params.documentId)}`
+            const queryParams = new URLSearchParams()
+            if (params.includeTabsContent) {
+                queryParams.set('includeTabsContent', 'true')
+            }
+            const endpoint =
+                `documents/${encodeURIComponent(params.documentId)}` + (queryParams.size > 0 ? `?${queryParams.toString()}` : '')
             const response = await this.makeGoogleDocsRequest({ endpoint, params })
             return response
         } catch (error) {
-            return `Error getting document: ${error}`
+            return formatToolError(`Error getting document: ${error}`, params)
         }
     }
 }
@@ -381,7 +386,7 @@ class UpdateDocumentTool extends BaseGoogleDocsTool {
                 return `No updates specified` + TOOL_ARGS_PREFIX + JSON.stringify(params)
             }
         } catch (error) {
-            return `Error updating document: ${error}`
+            return formatToolError(`Error updating document: ${error}`, params)
         }
     }
 }
@@ -429,7 +434,7 @@ class InsertTextTool extends BaseGoogleDocsTool {
             })
             return response
         } catch (error) {
-            return `Error inserting text: ${error}`
+            return formatToolError(`Error inserting text: ${error}`, params)
         }
     }
 }
@@ -478,7 +483,7 @@ class ReplaceTextTool extends BaseGoogleDocsTool {
             })
             return response
         } catch (error) {
-            return `Error replacing text: ${error}`
+            return formatToolError(`Error replacing text: ${error}`, params)
         }
     }
 }
@@ -534,7 +539,7 @@ class AppendTextTool extends BaseGoogleDocsTool {
             })
             return response
         } catch (error) {
-            return `Error appending text: ${error}`
+            return formatToolError(`Error appending text: ${error}`, params)
         }
     }
 }
@@ -562,10 +567,14 @@ class GetTextContentTool extends BaseGoogleDocsTool {
         const params = { ...arg, ...this.defaultParams }
 
         try {
-            const endpoint = `documents/${encodeURIComponent(params.documentId)}`
+            const queryParams = new URLSearchParams()
+            if (params.includeTabsContent) {
+                queryParams.set('includeTabsContent', 'true')
+            }
+            const endpoint =
+                `documents/${encodeURIComponent(params.documentId)}` + (queryParams.size > 0 ? `?${queryParams.toString()}` : '')
             const response = await this.makeGoogleDocsRequest({ endpoint, params })
 
-            // Extract and return just the text content
             const docData = JSON.parse(response.split(TOOL_ARGS_PREFIX)[0])
             let textContent = ''
 
@@ -579,11 +588,24 @@ class GetTextContentTool extends BaseGoogleDocsTool {
                 }
             }
 
-            docData.body.content?.forEach(extractText)
+            const extractFromTabs = (tabs: any[]) => {
+                for (const tab of tabs) {
+                    tab.documentTab?.body?.content?.forEach(extractText)
+                    if (tab.childTabs?.length) {
+                        extractFromTabs(tab.childTabs)
+                    }
+                }
+            }
+
+            if (docData.tabs?.length) {
+                extractFromTabs(docData.tabs)
+            } else {
+                docData.body?.content?.forEach(extractText)
+            }
 
             return JSON.stringify({ textContent }) + TOOL_ARGS_PREFIX + JSON.stringify(params)
         } catch (error) {
-            return `Error getting text content: ${error}`
+            return formatToolError(`Error getting text content: ${error}`, params)
         }
     }
 }
@@ -631,7 +653,7 @@ class InsertImageTool extends BaseGoogleDocsTool {
             })
             return response
         } catch (error) {
-            return `Error inserting image: ${error}`
+            return formatToolError(`Error inserting image: ${error}`, params)
         }
     }
 }
@@ -680,7 +702,7 @@ class CreateTableTool extends BaseGoogleDocsTool {
             })
             return response
         } catch (error) {
-            return `Error creating table: ${error}`
+            return formatToolError(`Error creating table: ${error}`, params)
         }
     }
 }

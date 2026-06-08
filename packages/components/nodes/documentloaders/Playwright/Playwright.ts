@@ -5,7 +5,7 @@ import {
     PlaywrightWebBaseLoaderOptions
 } from '@langchain/community/document_loaders/web/playwright'
 import { Document } from '@langchain/core/documents'
-import { TextSplitter } from 'langchain/text_splitter'
+import { TextSplitter } from '@langchain/textsplitters'
 import { test } from 'linkifyjs'
 import { omit } from 'lodash'
 import { handleEscapeCharacters, INodeOutputsValue, webCrawl, xmlScrape } from '../../../src'
@@ -190,11 +190,14 @@ class Playwright_DocumentLoaders implements INode {
         async function playwrightLoader(url: string): Promise<Document[] | undefined> {
             try {
                 let docs = []
+
+                const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH
+
                 const config: PlaywrightWebBaseLoaderOptions = {
                     launchOptions: {
                         args: ['--no-sandbox'],
                         headless: true,
-                        executablePath: process.env.PLAYWRIGHT_EXECUTABLE_FILE_PATH
+                        executablePath: executablePath
                     }
                 }
                 if (waitUntilGoToOption) {
