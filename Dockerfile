@@ -11,6 +11,7 @@ RUN apk update && \
     apk add --no-cache \
         libc6-compat \
         python3 \
+        py3-setuptools \
         make \
         g++ \
         build-base \
@@ -18,7 +19,7 @@ RUN apk update && \
         pango-dev \
         chromium \
         curl \
-	git && \
+        git && \
     npm install -g pnpm
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true
