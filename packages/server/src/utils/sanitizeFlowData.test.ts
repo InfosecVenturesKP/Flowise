@@ -138,6 +138,61 @@ describe('sanitizeFlowDataForPublicEndpoint', () => {
         expect(inputs.formInputTypes).toEqual(formInputTypes)
     })
 
+    it('strips the system prompt (systemMessagePrompt) while preserving model config', () => {
+        const flowData = makeFlowData([
+            makeNode(
+                { systemMessagePrompt: 'SYSTEM PROMPT — secret guardrail instructions', modelName: 'gpt-4o' },
+                [
+                    { name: 'systemMessagePrompt', type: 'string' },
+                    { name: 'modelName', type: 'string' }
+                ],
+                { name: 'conversationChain' }
+            )
+        ])
+        const result = JSON.parse(sanitizeFlowDataForPublicEndpoint(flowData))
+        expect(result.nodes[0].data.inputs).not.toHaveProperty('systemMessagePrompt')
+        expect(result.nodes[0].data.inputs.modelName).toBe('gpt-4o')
+    })
+
+    it('strips all known prompt-bearing input names', () => {
+        const promptKeys = [
+            'systemMessage',
+            'humanMessage',
+            'humanMessagePrompt',
+            'chatPromptTemplate',
+            'template',
+            'promptValues',
+            'prompt',
+            'messages',
+            'agentMessages',
+            'workerPrompt',
+            'supervisorPrompt'
+        ]
+        const inputs: Record<string, unknown> = { keepMe: 'value' }
+        const inputParams = [{ name: 'keepMe', type: 'string' }]
+        for (const k of promptKeys) {
+            inputs[k] = `secret-${k}`
+            inputParams.push({ name: k, type: 'string' })
+        }
+        const result = JSON.parse(sanitizeFlowDataForPublicEndpoint(makeFlowData([makeNode(inputs, inputParams)])))
+        for (const k of promptKeys) {
+            expect(result.nodes[0].data.inputs).not.toHaveProperty(k)
+        }
+        expect(result.nodes[0].data.inputs.keepMe).toBe('value')
+    })
+
+    it('blanks default/placeholder on prompt-bearing inputParams', () => {
+        const flowData = makeFlowData([
+            makeNode({ systemMessagePrompt: 'configured prompt' }, [
+                { name: 'systemMessagePrompt', type: 'string', default: 'leaky default prompt', placeholder: 'leaky placeholder prompt' }
+            ])
+        ])
+        const result = JSON.parse(sanitizeFlowDataForPublicEndpoint(flowData))
+        const param = result.nodes[0].data.inputParams.find((p: { name: string }) => p.name === 'systemMessagePrompt')
+        expect(param).not.toHaveProperty('default')
+        expect(param).not.toHaveProperty('placeholder')
+    })
+
     it('returns empty nodes/edges structure for malformed flowData', () => {
         const result = JSON.parse(sanitizeFlowDataForPublicEndpoint('not-valid-json'))
         expect(result).toEqual({ nodes: [], edges: [] })

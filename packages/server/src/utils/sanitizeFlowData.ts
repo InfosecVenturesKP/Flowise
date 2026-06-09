@@ -3,10 +3,29 @@ import { IReactFlowObject } from '../Interface'
 
 const SENSITIVE_HEADER_KEYS = new Set(['authorization', 'x-api-key', 'x-auth-token', 'cookie'])
 
+// Input names that carry the flow's prompt / instruction text. These are never
+// needed by the embed chat widget and disclose the bot's system prompt and
+// guardrail logic, so they are stripped from the public payload.
+const SENSITIVE_PROMPT_KEYS = new Set([
+    'systemMessage',
+    'systemMessagePrompt',
+    'humanMessage',
+    'humanMessagePrompt',
+    'chatPromptTemplate',
+    'template',
+    'promptValues',
+    'prompt',
+    'messages',
+    'agentMessages',
+    'workerPrompt',
+    'supervisorPrompt'
+])
+
 /**
  * Sanitizes flowData before returning it from a public endpoint.
- * Strips password/file/folder inputs, credential ID references, and
- * auth-related HTTP headers so sensitive credentials are never exposed.
+ * Strips password/file/folder inputs, prompt/instruction text, credential ID
+ * references, and auth-related HTTP headers so neither sensitive credentials
+ * nor the bot's system prompt are exposed.
  */
 export const sanitizeFlowDataForPublicEndpoint = (flowDataString: string): string => {
     if (!flowDataString) return flowDataString
@@ -30,6 +49,13 @@ export const sanitizeFlowDataForPublicEndpoint = (flowDataString: string): strin
                 const param = inputParams.find((p) => p.name === key)
 
                 if (param && (param.type === 'password' || param.type === 'file' || param.type === 'folder')) {
+                    continue
+                }
+
+                // Strip prompt / instruction text regardless of declared param type
+                // (e.g. systemMessagePrompt is type 'string'). The embed widget does
+                // not consume these; exposing them leaks the bot's system prompt.
+                if (SENSITIVE_PROMPT_KEYS.has(key)) {
                     continue
                 }
 
@@ -60,6 +86,16 @@ export const sanitizeFlowDataForPublicEndpoint = (flowDataString: string): strin
                 sanitizedInputs[key] = inputs[key]
             }
             node.data.inputs = sanitizedInputs
+
+            // The prompt text can also surface through inputParams scaffolding
+            // (default/placeholder). Blank these for prompt-bearing params so no
+            // configured prompt content leaks via the node schema.
+            for (const param of inputParams) {
+                if (param && SENSITIVE_PROMPT_KEYS.has(param.name)) {
+                    if ('default' in param) delete (param as { default?: unknown }).default
+                    if ('placeholder' in param) delete (param as { placeholder?: unknown }).placeholder
+                }
+            }
         }
 
         return JSON.stringify(flowData)
