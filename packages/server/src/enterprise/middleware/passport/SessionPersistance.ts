@@ -46,18 +46,25 @@ export const initializeDBClientAndStore: any = () => {
         case 'mysql': {
             const expressSession = require('express-session')
             const MySQLStore = require('express-mysql-session')(expressSession)
-            const options = {
+            const mysql = require('mysql2/promise')
+            const connection = {
                 host: process.env.DATABASE_HOST,
                 port: parseInt(process.env.DATABASE_PORT || '3306'),
                 user: process.env.DATABASE_USER,
                 password: process.env.DATABASE_PASSWORD,
-                database: process.env.DATABASE_NAME,
+                database: process.env.DATABASE_NAME
+            }
+            const options = {
+                ...connection,
                 createDatabaseTable: true,
                 schema: {
                     tableName: 'login_sessions'
                 }
             }
-            dbStore = new MySQLStore(options)
+            // express-mysql-session only forwards a fixed list of options to mysql2 and drops `ssl`,
+            // so build the pool here to keep TLS on servers that require secure transport.
+            const pool = mysql.createPool({ ...connection, ssl: getDatabaseSSLFromEnv() })
+            dbStore = new MySQLStore(options, pool)
             return dbStore
         }
         case 'mariadb':
